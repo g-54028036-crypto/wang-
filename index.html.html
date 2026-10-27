@@ -1,0 +1,1238 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lightning-Thunder Lock: Wang Matematik Tahun 1</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- MediaPipe Hands & Camera Utils CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Fredoka:wght@400;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        body {
+            font-family: 'Fredoka', sans-serif;
+            background-color: #0b0f19;
+            color: #ffffff;
+            overflow: hidden;
+            user-select: none;
+        }
+        .font-cyber {
+            font-family: 'Orbitron', sans-serif;
+        }
+        
+        /* Custom Neon Glow Utility Classes */
+        .glow-cyan {
+            box-shadow: 0 0 20px rgba(0, 243, 255, 0.6), inset 0 0 15px rgba(0, 243, 255, 0.4);
+            border-color: #00f3ff;
+        }
+        .glow-yellow {
+            box-shadow: 0 0 25px rgba(255, 230, 0, 0.8), inset 0 0 15px rgba(255, 230, 0, 0.5);
+            border-color: #ffe600;
+        }
+        .glow-red {
+            box-shadow: 0 0 20px rgba(255, 50, 50, 0.7);
+            border-color: #ff3232;
+        }
+        .text-glow-yellow {
+            text-shadow: 0 0 12px rgba(255, 230, 0, 0.9), 0 0 25px rgba(255, 200, 0, 0.6);
+        }
+        .text-glow-cyan {
+            text-shadow: 0 0 12px rgba(0, 243, 255, 0.9), 0 0 25px rgba(0, 243, 255, 0.6);
+        }
+
+        /* Screen Shake Effect */
+        @keyframes shake {
+            0% { transform: translate(1px, 1px) rotate(0deg); }
+            10% { transform: translate(-2px, -3px) rotate(-1deg); }
+            20% { transform: translate(-4px, 0px) rotate(1deg); }
+            30% { transform: translate(4px, 3px) rotate(0deg); }
+            40% { transform: translate(2px, -2px) rotate(1deg); }
+            50% { transform: translate(-2px, 3px) rotate(-1deg); }
+            60% { transform: translate(-4px, 1px) rotate(0deg); }
+            70% { transform: translate(4px, 1px) rotate(-1deg); }
+            80% { transform: translate(-2px, -2px) rotate(1deg); }
+            90% { transform: translate(2px, 3px) rotate(0deg); }
+            100% { transform: translate(1px, -2px) rotate(-1deg); }
+        }
+        .shake {
+            animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both;
+        }
+
+        /* Lightning Strike Visual Keyframe */
+        @keyframes flashBg {
+            0% { background-color: rgba(0, 243, 255, 0.4); }
+            50% { background-color: rgba(255, 255, 255, 0.8); }
+            100% { background-color: transparent; }
+        }
+        .flash-overlay {
+            animation: flashBg 0.3s ease-out;
+        }
+    </style>
+</head>
+<body class="w-screen h-screen relative bg-slate-950 text-white overflow-hidden flex flex-col justify-between">
+
+    <!-- Background Animation Canvas (Lightning Bolts & Sparks) -->
+    <canvas id="fxCanvas" class="absolute inset-0 z-10 pointer-events-none w-full h-full"></canvas>
+
+    <!-- Full Screen Flash Effect Container -->
+    <div id="flashContainer" class="absolute inset-0 pointer-events-none z-20"></div>
+
+    <!-- MAIN APP CONTAINER -->
+    <div class="relative z-30 w-full h-full flex flex-col justify-between p-4 max-w-7xl mx-auto">
+        
+        <!-- HEADER / TOP HUD STATUS -->
+        <header class="w-full bg-slate-900/80 backdrop-blur-md rounded-2xl border border-cyan-500/30 p-3 shadow-lg flex flex-wrap justify-between items-center gap-2">
+            <!-- Game Title & Round -->
+            <div class="flex items-center gap-3">
+                <div class="bg-gradient-to-br from-yellow-400 to-amber-600 p-2 rounded-xl text-slate-950 font-black text-xl font-cyber shadow-lg">
+                    ⚡ ⚡ ⚡
+                </div>
+                <div>
+                    <h1 class="text-xl md:text-2xl font-black font-cyber text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-yellow-300 to-amber-400">
+                        LIGHTNING-THUNDER LOCK
+                    </h1>
+                    <p class="text-xs text-cyan-300 font-semibold tracking-wider">WANG MATEMATIK TAHUN 1</p>
+                </div>
+            </div>
+
+            <!-- Stats Bar: Round, Timer, Score, Lives -->
+            <div class="flex items-center gap-4 md:gap-6">
+                <!-- Round Badge -->
+                <div class="text-center bg-slate-800/80 px-3 py-1 rounded-xl border border-slate-700">
+                    <span class="text-xs text-slate-400 block font-cyber">SOALAN</span>
+                    <span id="questionNum" class="text-lg font-bold text-yellow-400 font-cyber">1/10</span>
+                </div>
+
+                <!-- Lives -->
+                <div class="text-center bg-slate-800/80 px-3 py-1 rounded-xl border border-slate-700">
+                    <span class="text-xs text-slate-400 block font-cyber">NYAWA</span>
+                    <div id="livesContainer" class="text-lg flex gap-1">❤️❤️❤️</div>
+                </div>
+
+                <!-- Timer Bar -->
+                <div class="w-28 md:w-36">
+                    <div class="flex justify-between text-xs mb-1 font-cyber">
+                        <span class="text-cyan-400">MASA</span>
+                        <span id="timerText" class="text-yellow-400 font-bold">20s</span>
+                    </div>
+                    <div class="w-full bg-slate-800 h-3 rounded-full overflow-hidden border border-slate-700">
+                        <div id="timerBar" class="bg-gradient-to-r from-cyan-400 to-yellow-400 h-full w-full transition-all duration-200"></div>
+                    </div>
+                </div>
+
+                <!-- Score -->
+                <div class="text-center bg-slate-800/80 px-4 py-1 rounded-xl border border-cyan-500/40 glow-cyan">
+                    <span class="text-xs text-cyan-400 block font-cyber">SKOR</span>
+                    <span id="scoreText" class="text-xl font-black text-yellow-300 font-cyber">0</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- START SCREEN OVERLAY -->
+        <div id="startScreen" class="absolute inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/95 backdrop-blur-lg">
+            <div class="max-w-xl w-full bg-slate-900 border-2 border-cyan-400/50 rounded-3xl p-6 md:p-8 text-center shadow-2xl relative overflow-hidden">
+                <div class="absolute -top-10 -right-10 w-40 h-40 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none"></div>
+                <div class="absolute -bottom-10 -left-10 w-40 h-40 bg-yellow-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+                <div class="inline-block bg-gradient-to-r from-cyan-500 to-yellow-400 text-slate-950 font-black px-4 py-1 rounded-full text-xs tracking-widest uppercase mb-4 font-cyber">
+                    Permainan Interaktif Gesture Hands
+                </div>
+
+                <h2 class="text-3xl md:text-4xl font-black font-cyber text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-yellow-300 to-amber-400 mb-4">
+                    ⚡ LIGHTNING-THUNDER LOCK
+                </h2>
+                <p class="text-slate-300 text-sm md:text-base mb-6 leading-relaxed">
+                    Uji kepakaran wang Matematik Tahun 1 menggunakan isyarat tangan anda di depan webcam!
+                </p>
+
+                <!-- Gesture Guide Cards -->
+                <div class="grid grid-cols-2 gap-4 mb-6 text-left">
+                    <div class="bg-slate-800/80 p-4 rounded-2xl border border-cyan-500/30 flex items-center gap-3">
+                        <div class="text-3xl">✋</div>
+                        <div>
+                            <div class="font-bold text-cyan-400 text-sm font-cyber">1. TAPAK TANGAN</div>
+                            <div class="text-xs text-slate-300">Halakan jari/tapak tangan untuk kunci (Lock) jawapan.</div>
+                        </div>
+                    </div>
+                    <div class="bg-slate-800/80 p-4 rounded-2xl border border-yellow-500/30 flex items-center gap-3">
+                        <div class="text-3xl">✊</div>
+                        <div>
+                            <div class="font-bold text-yellow-400 text-sm font-cyber">2. GENGGAM FIST</div>
+                            <div class="text-xs text-slate-300">Genggam tangan untuk lancarkan Sambaran Petir! ⚡</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="flex flex-col sm:flex-row gap-3">
+                    <button id="btnStartCamera" class="flex-1 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-black py-4 px-6 rounded-2xl font-cyber text-lg shadow-lg hover:shadow-cyan-500/50 transition-all transform hover:-translate-y-1">
+                        📹 MULA DENGAN KAMERA
+                    </button>
+                    <button id="btnStartMouse" class="bg-slate-800 hover:bg-slate-700 text-yellow-300 font-bold py-4 px-6 rounded-2xl font-cyber text-sm border border-yellow-500/40 hover:border-yellow-400 transition-all">
+                        🖱️ GUNA TETIKUS / TOUCH
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- MAIN GAMEPLAY AREA -->
+        <main class="flex-1 my-3 flex flex-col justify-between gap-4 relative">
+
+            <!-- Question Card -->
+            <div id="questionCard" class="w-full bg-slate-900/90 border-2 border-yellow-400/40 rounded-3xl p-4 md:p-6 shadow-2xl backdrop-blur-md flex flex-col md:flex-row items-center gap-4 md:gap-8 min-h-[160px]">
+                <!-- Question Visual Display (SVG Money Box) -->
+                <div id="questionSvgContainer" class="w-full md:w-1/3 h-32 bg-slate-950/70 rounded-2xl border border-cyan-500/30 p-2 flex items-center justify-center gap-2 overflow-hidden shadow-inner">
+                    <!-- Dynamic SVG injected here -->
+                </div>
+
+                <!-- Question Text -->
+                <div class="w-full md:w-2/3 text-left">
+                    <span class="inline-block bg-cyan-950 text-cyan-400 font-cyber text-xs px-3 py-1 rounded-full border border-cyan-500/30 mb-2">
+                        SOALAN MATEMATIK WANG
+                    </span>
+                    <h2 id="questionText" class="text-lg md:text-2xl font-bold text-white leading-snug">
+                        Memuatkan soalan...
+                    </h2>
+                </div>
+            </div>
+
+            <!-- Answers Grid (3 Options A, B, C) -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 w-full flex-1">
+                <!-- Option A -->
+                <div data-index="0" class="answer-card relative bg-slate-900/80 hover:bg-slate-800/90 border-2 border-slate-700 rounded-3xl p-4 flex flex-col items-center justify-center cursor-pointer transition-all duration-200 group overflow-hidden">
+                    <div class="absolute top-3 left-3 bg-slate-800 text-cyan-400 font-cyber font-bold text-xs px-3 py-1 rounded-full border border-slate-700 group-hover:border-cyan-400">
+                        PILIHAN A
+                    </div>
+                    <!-- Lock Progress Ring SVG Overlay -->
+                    <div class="lock-ring absolute inset-0 pointer-events-none opacity-0 transition-opacity">
+                        <svg class="w-full h-full p-2" viewBox="0 0 100 100">
+                            <circle cx="50" cy="50" r="45" fill="none" stroke="#00f3ff" stroke-width="2" stroke-dasharray="280" stroke-dashoffset="280" class="progress-circle transition-all duration-200" />
+                        </svg>
+                    </div>
+                    <div class="answer-icon-box mb-2 h-16 flex items-center justify-center"></div>
+                    <div class="answer-text text-xl md:text-2xl font-bold text-yellow-300 font-cyber text-center">---</div>
+                </div>
+
+                <!-- Option B -->
+                <div data-index="1" class="answer-card relative bg-slate-900/80 hover:bg-slate-800/90 border-2 border-slate-700 rounded-3xl p-4 flex flex-col items-center justify-center cursor-pointer transition-all duration-200 group overflow-hidden">
+                    <div class="absolute top-3 left-3 bg-slate-800 text-cyan-400 font-cyber font-bold text-xs px-3 py-1 rounded-full border border-slate-700 group-hover:border-cyan-400">
+                        PILIHAN B
+                    </div>
+                    <div class="lock-ring absolute inset-0 pointer-events-none opacity-0 transition-opacity">
+                        <svg class="w-full h-full p-2" viewBox="0 0 100 100">
+                            <circle cx="50" cy="50" r="45" fill="none" stroke="#00f3ff" stroke-width="2" stroke-dasharray="280" stroke-dashoffset="280" class="progress-circle transition-all duration-200" />
+                        </svg>
+                    </div>
+                    <div class="answer-icon-box mb-2 h-16 flex items-center justify-center"></div>
+                    <div class="answer-text text-xl md:text-2xl font-bold text-yellow-300 font-cyber text-center">---</div>
+                </div>
+
+                <!-- Option C -->
+                <div data-index="2" class="answer-card relative bg-slate-900/80 hover:bg-slate-800/90 border-2 border-slate-700 rounded-3xl p-4 flex flex-col items-center justify-center cursor-pointer transition-all duration-200 group overflow-hidden">
+                    <div class="absolute top-3 left-3 bg-slate-800 text-cyan-400 font-cyber font-bold text-xs px-3 py-1 rounded-full border border-slate-700 group-hover:border-cyan-400">
+                        PILIHAN C
+                    </div>
+                    <div class="lock-ring absolute inset-0 pointer-events-none opacity-0 transition-opacity">
+                        <svg class="w-full h-full p-2" viewBox="0 0 100 100">
+                            <circle cx="50" cy="50" r="45" fill="none" stroke="#00f3ff" stroke-width="2" stroke-dasharray="280" stroke-dashoffset="280" class="progress-circle transition-all duration-200" />
+                        </svg>
+                    </div>
+                    <div class="answer-icon-box mb-2 h-16 flex items-center justify-center"></div>
+                    <div class="answer-text text-xl md:text-2xl font-bold text-yellow-300 font-cyber text-center">---</div>
+                </div>
+            </div>
+
+        </main>
+
+        <!-- FOOTER / WEBCAM PIP & GESTURE STATUS HUD -->
+        <footer class="w-full bg-slate-900/80 backdrop-blur-md rounded-2xl border border-slate-800 p-3 flex flex-wrap justify-between items-center gap-3">
+            <!-- Gesture HUD Live Status -->
+            <div class="flex items-center gap-3 flex-1 min-w-[280px]">
+                <div id="gestureStatusBadge" class="bg-cyan-950 text-cyan-400 border border-cyan-500/40 px-3 py-2 rounded-xl font-cyber text-xs font-bold flex items-center gap-2">
+                    <span class="w-3 h-3 rounded-full bg-cyan-400 animate-pulse"></span>
+                    <span id="gestureStatusText">MOD TETIKUS AKTIF</span>
+                </div>
+                <div id="gestureInstruction" class="text-xs text-slate-400">
+                    Halakan kursor & tekan untuk memilih.
+                </div>
+            </div>
+
+            <!-- Controls & Mode Switch -->
+            <div class="flex items-center gap-2">
+                <button id="btnToggleCamera" class="bg-slate-800 hover:bg-slate-700 text-xs text-cyan-300 font-cyber px-3 py-2 rounded-xl border border-cyan-500/30 transition-all">
+                    📷 TUKAR DAHULU KAMERA
+                </button>
+            </div>
+        </footer>
+
+    </div>
+
+    <!-- WEBCAM PIP OVERLAY (Bottom Right Floating Box) -->
+    <div id="webcamPip" class="fixed bottom-16 right-4 z-40 w-40 h-32 md:w-52 md:h-40 bg-slate-900 border-2 border-cyan-400/80 rounded-2xl overflow-hidden shadow-2xl flex flex-col hidden">
+        <div class="bg-slate-950 text-[10px] font-cyber px-2 py-0.5 text-cyan-400 flex justify-between items-center border-b border-cyan-500/30">
+            <span>LIVE CAMERA PIP</span>
+            <span id="fpsCounter" class="text-yellow-400">FPS: 30</span>
+        </div>
+        <div class="relative flex-1 bg-black overflow-hidden">
+            <!-- Mirrored Video Input -->
+            <video id="webcamVideo" class="absolute inset-0 w-full h-full object-cover transform -scale-x-100" playsinline></video>
+            <!-- Canvas Debug Overlay for hand skeleton -->
+            <canvas id="pipCanvas" class="absolute inset-0 w-full h-full pointer-events-none transform -scale-x-100"></canvas>
+        </div>
+    </div>
+
+    <!-- GAME OVER / RESULT OVERLAY -->
+    <div id="resultScreen" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/95 backdrop-blur-xl hidden">
+        <div class="max-w-md w-full bg-slate-900 border-2 border-yellow-400/60 rounded-3xl p-8 text-center shadow-2xl relative">
+            <div class="text-6xl mb-2" id="resultEmoji">🏆</div>
+            <h2 id="resultTitle" class="text-3xl font-black font-cyber text-yellow-300 mb-1">TAHNIAH!</h2>
+            <p id="resultSubtitle" class="text-slate-300 text-sm mb-6">Kekuatan petir anda luar biasa!</p>
+
+            <div class="bg-slate-950 rounded-2xl border border-slate-800 p-4 mb-6 space-y-3">
+                <div class="flex justify-between items-center">
+                    <span class="text-xs text-slate-400 font-cyber">SKOR AKHIR</span>
+                    <span id="resFinalScore" class="text-2xl font-black font-cyber text-cyan-400">1000</span>
+                </div>
+                <div class="flex justify-between items-center">
+                    <span class="text-xs text-slate-400 font-cyber">JAWAPAN BETUL</span>
+                    <span id="resAccuracy" class="text-lg font-bold font-cyber text-yellow-300">10 / 10</span>
+                </div>
+                <div class="flex justify-between items-center">
+                    <span class="text-xs text-slate-400 font-cyber">PANGKAT PETIR</span>
+                    <span id="resRank" class="text-sm font-bold text-amber-400 font-cyber">RAJA KILAT ⚡</span>
+                </div>
+            </div>
+
+            <button id="btnRestart" class="w-full bg-gradient-to-r from-yellow-400 to-amber-500 hover:from-yellow-300 hover:to-amber-400 text-slate-950 font-black py-4 px-6 rounded-2xl font-cyber text-lg shadow-lg hover:shadow-yellow-400/50 transition-all transform hover:-translate-y-1">
+                🔄 MAIN SEMULA
+            </button>
+        </div>
+    </div>
+
+    <!-- MAIN JAVASCRIPT LOGIC -->
+    <script>
+        /* ==========================================================================
+           1. QUESTION DATA & MONEY SVG GENERATOR (MALAYSIAN CURRENCY)
+           ========================================================================== */
+        
+        // Helper function to build cute custom SVGs for coins & banknotes
+        function getMoneySVG(type, value) {
+            if (type === 'coin') {
+                let strokeColor = "#fbbf24"; // Gold default
+                let fillGradient = ["#fef08a", "#d97706"];
+                if (value === '5 sen' || value === '10 sen') {
+                    fillGradient = ["#f1f5f9", "#94a3b8"]; // Silver
+                    strokeColor = "#cbd5e1";
+                }
+                return `
+                <svg class="w-16 h-16 drop-shadow-md" viewBox="0 0 100 100">
+                    <defs>
+                        <radialGradient id="grad-${value.replace(/\s+/g,'')}" cx="30%" cy="30%" r="70%">
+                            <stop offset="0%" stop-color="${fillGradient[0]}" />
+                            <stop offset="100%" stop-color="${fillGradient[1]}" />
+                        </radialGradient>
+                    </defs>
+                    <circle cx="50" cy="50" r="44" fill="url(#grad-${value.replace(/\s+/g,'')})" stroke="${strokeColor}" stroke-width="4" />
+                    <circle cx="50" cy="50" r="37" fill="none" stroke="${strokeColor}" stroke-width="1.5" stroke-dasharray="4,2" />
+                    <text x="50" y="55" font-family="'Orbitron', sans-serif" font-weight="900" font-size="20" fill="#0f172a" text-anchor="middle" dominant-baseline="middle">${value}</text>
+                </svg>`;
+            } else if (type === 'note') {
+                let bgGradient = ["#3b82f6", "#1d4ed8"]; // RM1 Blue
+                if (value.includes("RM5") && !value.includes("RM50")) bgGradient = ["#22c55e", "#15803d"]; // RM5 Green
+                if (value.includes("RM10")) bgGradient = ["#ef4444", "#b91c1c"]; // RM10 Red
+
+                return `
+                <svg class="w-28 h-16 drop-shadow-lg" viewBox="0 0 160 90">
+                    <defs>
+                        <linearGradient id="note-${value.replace(/\s+/g,'')}" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" stop-color="${bgGradient[0]}" />
+                            <stop offset="100%" stop-color="${bgGradient[1]}" />
+                        </linearGradient>
+                    </defs>
+                    <rect x="5" y="5" width="150" height="80" rx="8" fill="url(#note-${value.replace(/\s+/g,'')})" stroke="#ffffff" stroke-width="2"/>
+                    <rect x="10" y="10" width="140" height="70" rx="6" fill="none" stroke="#ffffff" stroke-dasharray="6,3" opacity="0.4"/>
+                    <circle cx="35" cy="45" r="18" fill="#ffffff" opacity="0.2"/>
+                    <text x="130" y="32" font-family="'Orbitron', sans-serif" font-weight="900" font-size="16" fill="#ffffff" text-anchor="end">${value}</text>
+                    <text x="35" y="50" font-family="sans-serif" font-weight="bold" font-size="12" fill="#ffffff" text-anchor="middle">BANK NEGARA</text>
+                </svg>`;
+            }
+            return '';
+        }
+
+        // 10 Questions Array as requested
+        const questionsData = [
+            {
+                q: "Duit syiling 50 sen mempunyai nombor berapa?",
+                svgs: [getMoneySVG('coin', '50 sen')],
+                options: [
+                    { label: "10", icon: getMoneySVG('coin', '10 sen') },
+                    { label: "20", icon: getMoneySVG('coin', '20 sen') },
+                    { label: "50", icon: getMoneySVG('coin', '50 sen') }
+                ],
+                correct: 2
+            },
+            {
+                q: "Wang kertas RM1 berwarna apa?",
+                svgs: [getMoneySVG('note', 'RM1')],
+                options: [
+                    { label: "Biru", icon: getMoneySVG('note', 'RM1') },
+                    { label: "Hijau", icon: getMoneySVG('note', 'RM5') },
+                    { label: "Merah", icon: getMoneySVG('note', 'RM10') }
+                ],
+                correct: 0
+            },
+            {
+                q: "Kira jumlah: 10 sen + 20 sen = ?",
+                svgs: [getMoneySVG('coin', '10 sen'), getMoneySVG('coin', '20 sen')],
+                options: [
+                    { label: "20 sen", icon: getMoneySVG('coin', '20 sen') },
+                    { label: "30 sen", icon: getMoneySVG('coin', '30 sen') },
+                    { label: "40 sen", icon: getMoneySVG('coin', '40 sen') }
+                ],
+                correct: 1
+            },
+            {
+                q: "Wang kertas RM5 berwarna apa dan bernilai berapa?",
+                svgs: [getMoneySVG('note', 'RM5')],
+                options: [
+                    { label: "RM1 (Biru)", icon: getMoneySVG('note', 'RM1') },
+                    { label: "RM5 (Hijau)", icon: getMoneySVG('note', 'RM5') },
+                    { label: "RM10 (Merah)", icon: getMoneySVG('note', 'RM10') }
+                ],
+                correct: 1
+            },
+            {
+                q: "Kira jumlah: RM2 + RM5 = ?",
+                svgs: [getMoneySVG('note', 'RM5')],
+                options: [
+                    { label: "RM7", icon: getMoneySVG('note', 'RM7') },
+                    { label: "RM6", icon: getMoneySVG('note', 'RM6') },
+                    { label: "RM8", icon: getMoneySVG('note', 'RM8') }
+                ],
+                correct: 0
+            },
+            {
+                q: "Syiling manakah yang mempunyai nilai paling besar?",
+                svgs: [getMoneySVG('coin', '5 sen'), getMoneySVG('coin', '20 sen'), getMoneySVG('coin', '50 sen')],
+                options: [
+                    { label: "5 sen", icon: getMoneySVG('coin', '5 sen') },
+                    { label: "20 sen", icon: getMoneySVG('coin', '20 sen') },
+                    { label: "50 sen", icon: getMoneySVG('coin', '50 sen') }
+                ],
+                correct: 2
+            },
+            {
+                q: "Kira baki wang: 50 sen - 20 sen = ?",
+                svgs: [getMoneySVG('coin', '50 sen'), getMoneySVG('coin', '20 sen')],
+                options: [
+                    { label: "30 sen", icon: getMoneySVG('coin', '30 sen') },
+                    { label: "10 sen", icon: getMoneySVG('coin', '10 sen') },
+                    { label: "40 sen", icon: getMoneySVG('coin', '40 sen') }
+                ],
+                correct: 0
+            },
+            {
+                q: "Apakah warna wang kertas RM10?",
+                svgs: [getMoneySVG('note', 'RM10')],
+                options: [
+                    { label: "Merah", icon: getMoneySVG('note', 'RM10') },
+                    { label: "Biru", icon: getMoneySVG('note', 'RM1') },
+                    { label: "Hijau", icon: getMoneySVG('note', 'RM5') }
+                ],
+                correct: 0
+            },
+            {
+                q: "Kira baki wang: RM10 - RM4 = ?",
+                svgs: [getMoneySVG('note', 'RM10')],
+                options: [
+                    { label: "RM5", icon: getMoneySVG('note', 'RM5') },
+                    { label: "RM6", icon: getMoneySVG('note', 'RM6') },
+                    { label: "RM7", icon: getMoneySVG('note', 'RM7') }
+                ],
+                correct: 1
+            },
+            {
+                q: "2 keping syiling 50 sen bersamaan dengan berapa?",
+                svgs: [getMoneySVG('coin', '50 sen'), getMoneySVG('coin', '50 sen')],
+                options: [
+                    { label: "80 sen", icon: getMoneySVG('coin', '80 sen') },
+                    { label: "RM1 (100 sen)", icon: getMoneySVG('note', 'RM1') },
+                    { label: "RM2", icon: getMoneySVG('note', 'RM2') }
+                ],
+                correct: 1
+            }
+        ];
+
+        /* ==========================================================================
+           2. WEB AUDIO SYNTHESIZER (SOUND EFFECTS)
+           ========================================================================== */
+        let audioCtx = null;
+
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+
+        // Lock beep sound
+        function playLockSound() {
+            if (!audioCtx) return;
+            try {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(800, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(1200, audioCtx.currentTime + 0.08);
+                gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.08);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.08);
+            } catch(e){}
+        }
+
+        // Thunder strike boom sound
+        function playThunderSound() {
+            if (!audioCtx) return;
+            try {
+                // White noise + Low frequency rumble
+                const bufferSize = audioCtx.sampleRate * 0.4;
+                const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+                const data = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) {
+                    data[i] = Math.random() * 2 - 1;
+                }
+                const noise = audioCtx.createBufferSource();
+                noise.buffer = buffer;
+
+                const filter = audioCtx.createBiquadFilter();
+                filter.type = 'lowpass';
+                filter.frequency.setValueAtTime(800, audioCtx.currentTime);
+                filter.frequency.exponentialRampToValueAtTime(40, audioCtx.currentTime + 0.4);
+
+                const gain = audioCtx.createGain();
+                gain.gain.setValueAtTime(0.6, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
+
+                noise.connect(filter);
+                filter.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                noise.start();
+                noise.stop(audioCtx.currentTime + 0.4);
+
+                // Add sub-bass surge
+                const sub = audioCtx.createOscillator();
+                const subGain = audioCtx.createGain();
+                sub.type = 'sawtooth';
+                sub.frequency.setValueAtTime(150, audioCtx.currentTime);
+                sub.frequency.exponentialRampToValueAtTime(30, audioCtx.currentTime + 0.35);
+                subGain.gain.setValueAtTime(0.4, audioCtx.currentTime);
+                subGain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.35);
+
+                sub.connect(subGain);
+                subGain.connect(audioCtx.destination);
+                sub.start();
+                sub.stop(audioCtx.currentTime + 0.35);
+            } catch(e){}
+        }
+
+        // Correct chime
+        function playCorrectSound() {
+            if (!audioCtx) return;
+            try {
+                const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
+                notes.forEach((freq, idx) => {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(freq, audioCtx.currentTime + idx * 0.06);
+                    gain.gain.setValueAtTime(0.2, audioCtx.currentTime + idx * 0.06);
+                    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + idx * 0.06 + 0.25);
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    osc.start(audioCtx.currentTime + idx * 0.06);
+                    osc.stop(audioCtx.currentTime + idx * 0.06 + 0.25);
+                });
+            } catch(e){}
+        }
+
+        // Wrong buzzer sound
+        function playWrongSound() {
+            if (!audioCtx) return;
+            try {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(160, audioCtx.currentTime);
+                osc.frequency.setValueAtTime(110, audioCtx.currentTime + 0.15);
+                gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.35);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.35);
+            } catch(e){}
+        }
+
+        /* ==========================================================================
+           3. CANVAS FX ENGINE (LIGHTNING BOLTS & RETICLE SPARK ANIMATION)
+           ========================================================================== */
+        const fxCanvas = document.getElementById('fxCanvas');
+        const ctx = fxCanvas.getContext('2d');
+
+        let width = fxCanvas.width = window.innerWidth;
+        let height = fxCanvas.height = window.innerHeight;
+
+        window.addEventListener('resize', () => {
+            width = fxCanvas.width = window.innerWidth;
+            height = fxCanvas.height = window.innerHeight;
+        });
+
+        // Pointer state
+        let pointerPos = { x: width / 2, y: height / 2 };
+        let activeTargetIndex = -1;
+        let lockProgress = 0; // 0 to 100
+        let isFistClosed = false;
+        let isCameraActive = false;
+
+        // Active visual fx arrays
+        let bolts = [];
+        let particles = [];
+        let slashes = [];
+
+        // Class for dynamic lightning bolts
+        class LightningBolt {
+            constructor(x1, y1, x2, y2, color = '#00f3ff') {
+                this.x1 = x1;
+                this.y1 = y1;
+                this.x2 = x2;
+                this.y2 = y2;
+                this.color = color;
+                this.life = 1.0;
+                this.segments = this.createSegments(x1, y1, x2, y2);
+            }
+
+            createSegments(x1, y1, x2, y2) {
+                let segs = [{ x: x1, y: y1 }, { x: x2, y: y2 }];
+                let iterations = 4;
+                let offset = 40;
+
+                for (let i = 0; i < iterations; i++) {
+                    let newSegs = [];
+                    for (let j = 0; j < segs.length - 1; j++) {
+                        let p1 = segs[j];
+                        let p2 = segs[j + 1];
+                        let midX = (p1.x + p2.x) / 2 + (Math.random() - 0.5) * offset;
+                        let midY = (p1.y + p2.y) / 2 + (Math.random() - 0.5) * offset;
+                        newSegs.push(p1);
+                        newSegs.push({ x: midX, y: midY });
+                    }
+                    newSegs.push(segs[segs.length - 1]);
+                    segs = newSegs;
+                    offset /= 1.8;
+                }
+                return segs;
+            }
+
+            draw(ctx) {
+                if (this.life <= 0) return;
+                ctx.save();
+                ctx.beginPath();
+                ctx.moveTo(this.segments[0].x, this.segments[0].y);
+                for (let i = 1; i < this.segments.length; i++) {
+                    ctx.lineTo(this.segments[i].x, this.segments[i].y);
+                }
+                ctx.strokeStyle = this.color;
+                ctx.lineWidth = 3 * this.life;
+                ctx.shadowColor = this.color;
+                ctx.shadowBlur = 15;
+                ctx.globalAlpha = this.life;
+                ctx.stroke();
+
+                // Inner core white line
+                ctx.beginPath();
+                ctx.moveTo(this.segments[0].x, this.segments[0].y);
+                for (let i = 1; i < this.segments.length; i++) {
+                    ctx.lineTo(this.segments[i].x, this.segments[i].y);
+                }
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 1.5 * this.life;
+                ctx.stroke();
+                ctx.restore();
+
+                this.life -= 0.08;
+            }
+        }
+
+        // Particle sparks
+        class Particle {
+            constructor(x, y, color) {
+                this.x = x;
+                this.y = y;
+                this.vx = (Math.random() - 0.5) * 12;
+                this.vy = (Math.random() - 0.5) * 12;
+                this.color = color;
+                this.size = Math.random() * 4 + 2;
+                this.life = 1.0;
+            }
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.life -= 0.04;
+            }
+            draw(ctx) {
+                if (this.life <= 0) return;
+                ctx.save();
+                ctx.globalAlpha = this.life;
+                ctx.fillStyle = this.color;
+                ctx.shadowColor = this.color;
+                ctx.shadowBlur = 8;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+        }
+
+        // Energy Slash Line
+        class SlashEffect {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.angle = (Math.random() - 0.5) * Math.PI / 2;
+                this.length = 0;
+                this.maxLength = 180;
+                this.life = 1.0;
+            }
+            update() {
+                this.length = Math.min(this.maxLength, this.length + 30);
+                this.life -= 0.06;
+            }
+            draw(ctx) {
+                if (this.life <= 0) return;
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.rotate(this.angle);
+                ctx.globalAlpha = this.life;
+
+                ctx.strokeStyle = '#ffe600';
+                ctx.lineWidth = 6;
+                ctx.shadowColor = '#ffe600';
+                ctx.shadowBlur = 20;
+
+                ctx.beginPath();
+                ctx.moveTo(-this.length / 2, 0);
+                ctx.lineTo(this.length / 2, 0);
+                ctx.stroke();
+
+                ctx.restore();
+            }
+        }
+
+        function triggerLightningStrike(targetX, targetY) {
+            playThunderSound();
+            // Create bolts from top of screen to target
+            for (let i = 0; i < 3; i++) {
+                let startX = targetX + (Math.random() - 0.5) * 200;
+                bolts.push(new LightningBolt(startX, 0, targetX, targetY, i % 2 === 0 ? '#00f3ff' : '#ffe600'));
+            }
+            // Spawn spark particles
+            for (let i = 0; i < 25; i++) {
+                particles.push(new Particle(targetX, targetY, Math.random() > 0.5 ? '#ffe600' : '#00f3ff'));
+            }
+            // Slash effect
+            slashes.push(new SlashEffect(targetX, targetY));
+
+            // Flash overlay & shake
+            const flash = document.getElementById('flashContainer');
+            flash.classList.add('flash-overlay');
+            document.body.classList.add('shake');
+            setTimeout(() => {
+                flash.classList.remove('flash-overlay');
+                document.body.classList.remove('shake');
+            }, 350);
+        }
+
+        // Draw animated targeting reticle cursor on hand position
+        function drawHandReticle(ctx) {
+            ctx.save();
+            ctx.translate(pointerPos.x, pointerPos.y);
+
+            // Outer rotating ring
+            ctx.strokeStyle = isFistClosed ? '#ffe600' : (activeTargetIndex !== -1 ? '#00f3ff' : 'rgba(0, 243, 255, 0.5)');
+            ctx.lineWidth = 2;
+            ctx.shadowColor = ctx.strokeStyle;
+            ctx.shadowBlur = 10;
+
+            ctx.beginPath();
+            ctx.arc(0, 0, 22, 0, Math.PI * 2);
+            ctx.stroke();
+
+            // Inner crosshair lines
+            ctx.beginPath();
+            ctx.moveTo(-10, 0); ctx.lineTo(10, 0);
+            ctx.moveTo(0, -10); ctx.lineTo(0, 10);
+            ctx.stroke();
+
+            // Status label indicator near cursor
+            if (isCameraActive) {
+                ctx.font = '10px Orbitron';
+                ctx.fillStyle = isFistClosed ? '#ffe600' : '#00f3ff';
+                ctx.textAlign = 'center';
+                ctx.fillText(isFistClosed ? 'GENGGAM ⚡' : (activeTargetIndex !== -1 ? 'LOCK ✋' : 'TANGAN'), 0, 36);
+            }
+
+            ctx.restore();
+        }
+
+        // Main FX Animation Loop
+        function renderFX() {
+            ctx.clearRect(0, 0, width, height);
+
+            // Update & draw bolts
+            bolts.forEach((bolt, index) => {
+                bolt.draw(ctx);
+                if (bolt.life <= 0) bolts.splice(index, 1);
+            });
+
+            // Update & draw particles
+            particles.forEach((p, index) => {
+                p.update();
+                p.draw(ctx);
+                if (p.life <= 0) particles.splice(index, 1);
+            });
+
+            // Update & draw slashes
+            slashes.forEach((s, index) => {
+                s.update();
+                s.draw(ctx);
+                if (s.life <= 0) slashes.splice(index, 1);
+            });
+
+            // Render custom reticle
+            drawHandReticle(ctx);
+
+            requestAnimationFrame(renderFX);
+        }
+        requestAnimationFrame(renderFX);
+
+        /* ==========================================================================
+           4. GAME STATE & MECHANICS LOGIC
+           ========================================================================== */
+        let currentQIndex = 0;
+        let score = 0;
+        let lives = 3;
+        let timer = 20;
+        let timerInterval = null;
+        let isAnswerLocked = false;
+        let lockTimer = 0;
+        const LOCK_DURATION = 90; // frames (~1.5s lock) or fist trigger
+
+        const questionNumEl = document.getElementById('questionNum');
+        const livesContainer = document.getElementById('livesContainer');
+        const timerText = document.getElementById('timerText');
+        const timerBar = document.getElementById('timerBar');
+        const scoreText = document.getElementById('scoreText');
+        const questionText = document.getElementById('questionText');
+        const questionSvgContainer = document.getElementById('questionSvgContainer');
+        const answerCards = document.querySelectorAll('.answer-card');
+
+        function loadQuestion(index) {
+            if (index >= questionsData.length) {
+                endGame(true);
+                return;
+            }
+            isAnswerLocked = false;
+            lockProgress = 0;
+            currentQIndex = index;
+            const q = questionsData[index];
+
+            questionNumEl.innerText = `${index + 1}/${questionsData.length}`;
+            questionText.innerText = q.q;
+
+            // Render SVGs in question box
+            questionSvgContainer.innerHTML = q.svgs.join('');
+
+            // Reset & fill answer options
+            answerCards.forEach((card, i) => {
+                card.classList.remove('glow-cyan', 'glow-yellow', 'glow-red', 'border-cyan-400', 'border-yellow-400', 'border-red-500');
+                card.classList.add('border-slate-700');
+                
+                const iconBox = card.querySelector('.answer-icon-box');
+                const labelText = card.querySelector('.answer-text');
+                const ring = card.querySelector('.lock-ring');
+                
+                iconBox.innerHTML = q.options[i].icon;
+                labelText.innerText = q.options[i].label;
+                ring.style.opacity = '0';
+            });
+
+            resetTimer();
+        }
+
+        function resetTimer() {
+            clearInterval(timerInterval);
+            timer = 20;
+            updateTimerUI();
+            timerInterval = setInterval(() => {
+                timer--;
+                updateTimerUI();
+                if (timer <= 0) {
+                    clearInterval(timerInterval);
+                    handleTimeOut();
+                }
+            }, 1000);
+        }
+
+        function updateTimerUI() {
+            timerText.innerText = `${timer}s`;
+            const pct = (timer / 20) * 100;
+            timerBar.style.width = `${pct}%`;
+            if (timer <= 5) {
+                timerBar.className = "bg-gradient-to-r from-red-500 to-amber-500 h-full w-full transition-all duration-200";
+            } else {
+                timerBar.className = "bg-gradient-to-r from-cyan-400 to-yellow-400 h-full w-full transition-all duration-200";
+            }
+        }
+
+        function handleTimeOut() {
+            playWrongSound();
+            lives--;
+            updateLivesUI();
+            if (lives <= 0) {
+                endGame(false);
+            } else {
+                loadQuestion(currentQIndex + 1);
+            }
+        }
+
+        function updateLivesUI() {
+            let hearts = '';
+            for (let i = 0; i < 3; i++) {
+                hearts += (i < lives) ? '❤️' : '🖤';
+            }
+            livesContainer.innerText = hearts;
+        }
+
+        function processAnswer(selectedIndex) {
+            if (isAnswerLocked) return;
+            isAnswerLocked = true;
+            clearInterval(timerInterval);
+
+            const q = questionsData[currentQIndex];
+            const targetCard = answerCards[selectedIndex];
+            const rect = targetCard.getBoundingClientRect();
+            const strikeX = rect.left + rect.width / 2;
+            const strikeY = rect.top + rect.height / 2;
+
+            // Trigger lightning strike visual + sound
+            triggerLightningStrike(strikeX, strikeY);
+
+            const isCorrect = (selectedIndex === q.correct);
+
+            if (isCorrect) {
+                targetCard.classList.add('glow-yellow', 'border-yellow-400');
+                playCorrectSound();
+                score += 100 + timer * 5; // Bonus for speed
+                scoreText.innerText = score;
+            } else {
+                targetCard.classList.add('glow-red', 'border-red-500');
+                // Highlight correct one
+                answerCards[q.correct].classList.add('glow-cyan', 'border-cyan-400');
+                playWrongSound();
+                lives--;
+                updateLivesUI();
+            }
+
+            setTimeout(() => {
+                if (lives <= 0) {
+                    endGame(false);
+                } else {
+                    loadQuestion(currentQIndex + 1);
+                }
+            }, 1600);
+        }
+
+        function endGame(isWin) {
+            clearInterval(timerInterval);
+            document.getElementById('resultScreen').classList.remove('hidden');
+            const emoji = document.getElementById('resultEmoji');
+            const title = document.getElementById('resultTitle');
+            const subtitle = document.getElementById('resultSubtitle');
+
+            if (isWin) {
+                emoji.innerText = '🏆';
+                title.innerText = 'TAHNIAH! JUARA PETIR!';
+                subtitle.innerText = 'Anda telah menguasai semua soalan wang Matematik!';
+            } else {
+                emoji.innerText = '⚡';
+                title.innerText = 'CUBA LAGI!';
+                subtitle.innerText = 'Kehabisan nyawa! Latih kawalan petir anda sekali lagi!';
+            }
+
+            document.getElementById('resFinalScore').innerText = score;
+            document.getElementById('resAccuracy').innerText = `${Math.max(0, currentQIndex - (3 - lives))}/${questionsData.length}`;
+
+            let rank = 'PENEMBAK KILAT ⚡';
+            if (score >= 1200) rank = 'RAJA KILAT ULTIMATE 👑⚡';
+            else if (score >= 800) rank = 'PAHLAWAN PETIR ⚡';
+            document.getElementById('resRank').innerText = rank;
+        }
+
+        /* ==========================================================================
+           5. GESTURE & POINTER HIT TESTING
+           ========================================================================== */
+        function checkPointerTarget() {
+            if (isAnswerLocked) return;
+
+            let hoveredIndex = -1;
+            answerCards.forEach((card, idx) => {
+                const rect = card.getBoundingClientRect();
+                if (pointerPos.x >= rect.left && pointerPos.x <= rect.right &&
+                    pointerPos.y >= rect.top && pointerPos.y <= rect.bottom) {
+                    hoveredIndex = idx;
+                }
+            });
+
+            if (hoveredIndex !== activeTargetIndex) {
+                // Target changed
+                if (activeTargetIndex !== -1) {
+                    answerCards[activeTargetIndex].classList.remove('glow-cyan', 'border-cyan-400');
+                    answerCards[activeTargetIndex].querySelector('.lock-ring').style.opacity = '0';
+                }
+                activeTargetIndex = hoveredIndex;
+                lockTimer = 0;
+                if (activeTargetIndex !== -1) {
+                    playLockSound();
+                    answerCards[activeTargetIndex].classList.add('glow-cyan', 'border-cyan-400');
+                    answerCards[activeTargetIndex].querySelector('.lock-ring').style.opacity = '1';
+                }
+            }
+
+            // If hovering over an option
+            if (activeTargetIndex !== -1) {
+                // 1. Trigger if fist closed
+                if (isFistClosed) {
+                    processAnswer(activeTargetIndex);
+                    return;
+                }
+
+                // 2. Continuous hover lock progress fallback
+                lockTimer++;
+                const circle = answerCards[activeTargetIndex].querySelector('.progress-circle');
+                const progress = Math.min(1.0, lockTimer / LOCK_DURATION);
+                const strokeOffset = 280 - (progress * 280);
+                circle.style.strokeDashoffset = strokeOffset;
+
+                if (lockTimer >= LOCK_DURATION) {
+                    processAnswer(activeTargetIndex);
+                }
+            }
+        }
+
+        // Update loop for target collision check
+        setInterval(checkPointerTarget, 1000 / 30);
+
+        // Fallback Mouse & Touch Events
+        window.addEventListener('mousemove', (e) => {
+            if (!isCameraActive) {
+                pointerPos.x = e.clientX;
+                pointerPos.y = e.clientY;
+            }
+        });
+
+        answerCards.forEach((card) => {
+            card.addEventListener('click', () => {
+                const idx = parseInt(card.getAttribute('data-index'));
+                processAnswer(idx);
+            });
+        });
+
+        /* ==========================================================================
+           6. MEDIAPIPE HANDS DETECTOR INTEGRATION
+           ========================================================================== */
+        const videoElement = document.getElementById('webcamVideo');
+        const pipCanvas = document.getElementById('pipCanvas');
+        const pipCtx = pipCanvas.getContext('2d');
+        const gestureStatusText = document.getElementById('gestureStatusText');
+        const gestureInstruction = document.getElementById('gestureInstruction');
+        const fpsCounter = document.getElementById('fpsCounter');
+
+        let lastFrameTime = performance.now();
+
+        function onHandResults(results) {
+            // Update FPS
+            const now = performance.now();
+            const fps = Math.round(1000 / (now - lastFrameTime));
+            lastFrameTime = now;
+            fpsCounter.innerText = `FPS: ${fps}`;
+
+            // Clear PIP Canvas
+            pipCtx.clearRect(0, 0, pipCanvas.width, pipCanvas.height);
+
+            if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+                const landmarks = results.multiHandLandmarks[0];
+
+                // Render hand skeleton on PIP view
+                drawHandLandmarks(pipCtx, landmarks);
+
+                // Index fingertip position (Landmark 8) or Palm Center (Avg of 0, 5, 9, 13, 17)
+                const indexTip = landmarks[8];
+                const wrist = landmarks[0];
+
+                // Screen coordinates mapping (Mirrored x-axis)
+                const targetX = (1 - indexTip.x) * window.innerWidth;
+                const targetY = indexTip.y * window.innerHeight;
+
+                // Smooth pointer position using linear interpolation (Lerp)
+                pointerPos.x += (targetX - pointerPos.x) * 0.4;
+                pointerPos.y += (targetY - pointerPos.y) * 0.4;
+
+                // FIST DETECTION ALGORITHM:
+                // Measure distance from fingertips (8, 12, 16, 20) to wrist (0)
+                // vs MCP joints (5, 9, 13, 17) to wrist (0).
+                const tips = [8, 12, 16, 20];
+                const mcps = [5, 9, 13, 17];
+                let foldedFingers = 0;
+
+                for (let i = 0; i < 4; i++) {
+                    const tipDist = getDistance(landmarks[tips[i]], wrist);
+                    const mcpDist = getDistance(landmarks[mcps[i]], wrist);
+                    if (tipDist < mcpDist * 1.15) {
+                        foldedFingers++;
+                    }
+                }
+
+                // If at least 3 fingers are folded inwards -> FIST!
+                isFistClosed = (foldedFingers >= 3);
+
+                // Update HUD Status Badge
+                if (isFistClosed) {
+                    gestureStatusText.innerText = '⚡ GENGGAM FIST: TEMBAK!';
+                    gestureStatusText.parentElement.className = 'bg-amber-950 text-yellow-300 border border-yellow-500 px-3 py-2 rounded-xl font-cyber text-xs font-bold flex items-center gap-2 glow-yellow';
+                    gestureInstruction.innerText = 'Sambaran petir sedang dilancarkan!';
+                } else if (activeTargetIndex !== -1) {
+                    gestureStatusText.innerText = '✋ TAPAK TANGAN: KUNCI TARGET';
+                    gestureStatusText.parentElement.className = 'bg-cyan-950 text-cyan-300 border border-cyan-400 px-3 py-2 rounded-xl font-cyber text-xs font-bold flex items-center gap-2 glow-cyan';
+                    gestureInstruction.innerText = 'Genggam penumbuk (Clench Fist) untuk tembak petir!';
+                } else {
+                    gestureStatusText.innerText = '✋ TANGAN DIKESAN';
+                    gestureStatusText.parentElement.className = 'bg-slate-800 text-cyan-400 border border-slate-700 px-3 py-2 rounded-xl font-cyber text-xs font-bold flex items-center gap-2';
+                    gestureInstruction.innerText = 'Halakan tangan ke atas pilihan jawapan A, B, atau C.';
+                }
+
+            } else {
+                isFistClosed = false;
+                gestureStatusText.innerText = '🔍 MENCARI TANGAN...';
+                gestureStatusText.parentElement.className = 'bg-slate-900 text-yellow-400 border border-yellow-500/40 px-3 py-2 rounded-xl font-cyber text-xs font-bold flex items-center gap-2';
+                gestureInstruction.innerText = 'Angkat tangan anda di hadapan kamera webcam.';
+            }
+        }
+
+        function getDistance(p1, p2) {
+            return Math.hypot(p1.x - p2.x, p1.y - p2.y, (p1.z || 0) - (p2.z || 0));
+        }
+
+        function drawHandLandmarks(ctx, landmarks) {
+            ctx.fillStyle = '#00f3ff';
+            ctx.strokeStyle = '#ffe600';
+            ctx.lineWidth = 2;
+
+            landmarks.forEach(lm => {
+                const x = lm.x * pipCanvas.width;
+                const y = lm.y * pipCanvas.height;
+                ctx.beginPath();
+                ctx.arc(x, y, 3, 0, Math.PI * 2);
+                ctx.fill();
+            });
+        }
+
+        // MediaPipe Hands Initialization
+        let hands = null;
+        let camera = null;
+
+        function initMediaPipe() {
+            hands = new Hands({
+                locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+            });
+
+            hands.setOptions({
+                maxNumHands: 1,
+                modelComplexity: 1,
+                minDetectionConfidence: 0.6,
+                minTrackingConfidence: 0.6
+            });
+
+            hands.onResults(onHandResults);
+
+            camera = new Camera(videoElement, {
+                onFrame: async () => {
+                    await hands.send({ image: videoElement });
+                },
+                width: 320,
+                height: 240
+            });
+
+            camera.start()
+                .then(() => {
+                    isCameraActive = true;
+                    document.getElementById('webcamPip').classList.remove('hidden');
+                })
+                .catch(err => {
+                    console.warn("Camera access denied or unequipped:", err);
+                    alert("Kamera tidak ditemui / akses ditolak. Permainan ditukar ke Mod Tetikus.");
+                    isCameraActive = false;
+                    document.getElementById('webcamPip').classList.add('hidden');
+                });
+        }
+
+        /* ==========================================================================
+           7. BUTTON CONTROLS & EVENT LISTENERS
+           ========================================================================== */
+        document.getElementById('btnStartCamera').addEventListener('click', () => {
+            initAudio();
+            document.getElementById('startScreen').classList.add('hidden');
+            initMediaPipe();
+            loadQuestion(0);
+        });
+
+        document.getElementById('btnStartMouse').addEventListener('click', () => {
+            initAudio();
+            document.getElementById('startScreen').classList.add('hidden');
+            isCameraActive = false;
+            loadQuestion(0);
+        });
+
+        document.getElementById('btnToggleCamera').addEventListener('click', () => {
+            initAudio();
+            if (!isCameraActive) {
+                initMediaPipe();
+            } else {
+                if (camera) camera.stop();
+                isCameraActive = false;
+                document.getElementById('webcamPip').classList.add('hidden');
+                gestureStatusText.innerText = 'MOD TETIKUS AKTIF';
+                gestureInstruction.innerText = 'Halakan kursor & tekan untuk memilih.';
+            }
+        });
+
+        document.getElementById('btnRestart').addEventListener('click', () => {
+            document.getElementById('resultScreen').classList.add('hidden');
+            score = 0;
+            lives = 3;
+            scoreText.innerText = '0';
+            updateLivesUI();
+            loadQuestion(0);
+        });
+    </script>
+</body>
+</html>
